@@ -325,9 +325,14 @@
       <td></td>
     </tr>
     <tr>
-      <td>{% translate "CPU cores" %}</td>
+      <td>{% translate "CPU cores (mean)" %}</td>
       <td>{{tres_req.total_cores}}</td>
       <td>{{cpu_used | floatformat:-2}}</td>
+    </tr>
+    <tr>
+      <td>{% translate "CPU cores (90th percentile)" %}</td>
+      <td>{{tres_req.total_cores}}</td>
+      <td>{{cpu_used_p90 | floatformat:-2}}</td>
     </tr>
     <tr>
       <td>{% translate "CPU cores by node" %}</td>
