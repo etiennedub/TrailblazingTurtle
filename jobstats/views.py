@@ -236,8 +236,10 @@ def user(request, username):
         query_cpu = 'sum(rate(slurm_job_core_usage_total{{user="{}", {}}}[{}s]) / 1000000000)'.format(username, prom.get_filter(), prom.rate('slurm-job-exporter'))
         stats_cpu = prom.query_prometheus(query_cpu, now - delta, now)
         context['cpu_used'] = statistics.mean(stats_cpu[1])
+        context["cpu_used_p90"] = statistics.quantiles(stats_cpu[1], n=10, method="inclusive")[-1]
     except ValueError:
         context['cpu_used'] = 'N/A'
+        context["cpu_used_p90"] = 'N/A'
 
     try:
         query_mem = 'sum(slurm_job_memory_max{{user="{}", {}}})'.format(username, prom.get_filter())
@@ -358,8 +360,10 @@ def job(request, username, job_id):
         query_cpu = 'sum(rate(slurm_job_core_usage_total{{slurmjobid="{}", {}}}[{}s]) / 1000000000)'.format(job_id, prom.get_filter(), prom.rate('slurm-job-exporter'))
         stats_cpu = prom.query_prometheus(query_cpu, job.time_start_dt(), job.time_end_dt())
         context['cpu_used'] = statistics.mean(stats_cpu[1])
+        context['cpu_used_p90'] = statistics.quantiles(stats_cpu[1], n=10, method="inclusive")[-1]
     except ValueError:
         context['cpu_used'] = None
+        context['cpu_used_p90'] = None
 
     try:
         query_cpu_bynode = 'count(slurm_job_core_usage_total{{slurmjobid="{}", {}}}) by ({})'.format(job_id, prom.get_filter(), settings.PROM_NODE_HOSTNAME_LABEL)
@@ -423,7 +427,9 @@ def job(request, username, job_id):
                 'https://docs.alliancecan.ca/wiki/Running_jobs#Serial_job',
                 graph_ids=['cpu'])]
 
-        if (context['tres_req']['total_cores'] / 2) > context['cpu_used']:
+        if (context['tres_req']['total_cores'] / 2) > context['cpu_used'] and (
+            context["tres_req"]["total_cores"] * 0.75 > context["cpu_used_p90"]
+        ):
             comments += [Comment(
                 _('Less than half the CPU compute cycle were used').format(context['tres_req']['total_cores']),
                 'critical',
