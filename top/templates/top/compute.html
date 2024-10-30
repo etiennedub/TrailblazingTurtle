@@ -26,9 +26,11 @@
 
 <select select data-placeholder="Filter by wasting status" multiple class="chosen-select" id="select-status">
   <option value="OK">OK</option>
-  <option value="Memory">Memory</option>
-  <option value="Cores">Cores</option>
+  {% for waste_badge in select_waste_badges %}
+    <option value="{{ waste_badge }}">{{ waste_badge }}</option>
+  {% endfor %}
 </select>
+
 <table class="table table-striped" id="compute">
   <thead class="thead-dark">
     <tr>

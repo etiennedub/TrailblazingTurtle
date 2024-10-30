@@ -121,6 +121,7 @@ def compute(request):
             context['cpu_users'].append(stats)
         except KeyError:
             pass
+    context['select_waste_badges'] = [_('Memory'), _('Cores')]
 
     return render(request, 'top/compute.html', context)
 
@@ -213,6 +214,7 @@ def gpucompute(request):
             context['gpu_users'].append(stats)
         except KeyError:
             pass
+    context['select_waste_badges'] = [_('Memory'), _('Cores'), _('GPU ares totally unused'), _('GPUs')]
     return render(request, 'top/gpucompute.html', context)
 
 
@@ -286,6 +288,7 @@ def largemem(request):
             context['jobs'].append(stats)
         except KeyError:
             pass
+    context['select_waste_badges'] = [_('Memory'), _('Cores')]
 
     # gather all usernames
     users = set()

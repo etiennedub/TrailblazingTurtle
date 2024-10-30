@@ -34,6 +34,13 @@
   <dd>{% translate "Show the wasted resource" %}</dd>
 </dl>
 
+<select select data-placeholder="Filter by wasting status" multiple class="chosen-select" id="select-status">
+  <option value="OK">OK</option>
+  {% for waste_badge in select_waste_badges %}
+    <option value="{{ waste_badge }}">{{ waste_badge }}</option>
+  {% endfor %}
+</select>
+
 <table class="table table-striped" id="gpucompute">
   <thead class="thead-dark">
     <tr>
@@ -146,6 +153,18 @@
       ]
     });
   });
+
+  $(".chosen-select").chosen({width:"100%"})
+  $('#select-status').on('change', function() {
+      const selectedStatuses = $(this).val();
+      $('#gpucompute tbody tr').each(function() {
+        const row = $(this);
+        const badgeText = row.find('td:last-child .badge').text().trim();
+
+        const showRow = selectedStatuses.length === 0 || selectedStatuses.some(status => badgeText.includes(status));
+        row.toggle(showRow);
+      });
+  }).trigger('change');
 </script>
 
 {% endblock content %}
