@@ -2,6 +2,7 @@
 {% load humanize %}
 {% load i18n %}
 
+
 {% block title %}{% translate "Top compute users" %}{% endblock title %}
 
 {% block content %}
@@ -22,6 +23,12 @@
   <dt>{% translate "Wasting" %}</dt>
   <dd>{% translate "Show the wasted resource. The normal amount of memory per cores is taken into account to remove the memory flag when a user seems to use full nodes" %}</dd>
 </dl>
+
+<select select data-placeholder="Filter by wasting status" multiple class="chosen-select" id="select-status">
+  <option value="OK">OK</option>
+  <option value="Memory">Memory</option>
+  <option value="Cores">Cores</option>
+</select>
 <table class="table table-striped" id="compute">
   <thead class="thead-dark">
     <tr>
@@ -108,6 +115,19 @@
       ]
     });
   });
+
+  $(".chosen-select").chosen({width:"100%"})
+  $('#select-status').on('change', function() {
+      const selectedStatuses = $(this).val();
+      $('#compute tbody tr').each(function() {
+        const row = $(this);
+        const badgeText = row.find('td:last-child .badge').text().trim();
+
+        const showRow = selectedStatuses.length === 0 || selectedStatuses.some(status => badgeText.includes(status));
+        row.toggle(showRow);
+      });
+  }).trigger('change');
+
 </script>
 
 {% endblock content %}
