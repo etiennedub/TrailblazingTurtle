@@ -30,6 +30,15 @@
     <option value="{{ waste_badge }}">{{ waste_badge }}</option>
   {% endfor %}
 </select>
+<div id="time-interval-selector">
+  <label>Select Time Interval:</label>
+  <label><input type="radio" name="time-interval" value="last" checked> Last</label>
+  <label><input type="radio" name="time-interval" value="30s"> 30 Seconds</label>
+  <label><input type="radio" name="time-interval" value="1m"> 1 Minute</label>
+  <label><input type="radio" name="time-interval" value="10m"> 10 Minutes</label>
+  <label><input type="radio" name="time-interval" value="30m"> 30 Minutes</label>
+  <label><input type="radio" name="time-interval" value="1h"> 1 Hour</label>
+</div>
 
 <table class="table table-striped" id="compute">
   <thead class="thead-dark">
