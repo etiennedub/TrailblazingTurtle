@@ -228,9 +228,16 @@ class Prometheus:
             url=config['url'],
             headers=config['headers'])
         self.filter = config['filter']
+        self.filter_compute = config.get('filter_compute', "")
 
     def get_filter(self, module='default'):
         return self.filter[module]
+
+    def get_filter_compute(self):
+        if self.get_filter() is not None and len(self.get_filter()) > 0:
+            return f"{self.get_filter()}, {self.filter_compute}"
+        else:
+            return self.filter_compute
 
     def query_prometheus(self, query, duration, end=None, step='3m'):
         values = self.query_prometheus_multiple(query, duration, end, step)

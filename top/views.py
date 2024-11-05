@@ -33,11 +33,11 @@ def metrics_to_job(metrics):
     return jobs_metrics
 
 
-def stats_for_users(users=None, time_average_minutes=None):
+def stats_for_users(users=None, time_average_minutes=None, filter=prom.get_filter()):
     if users is None:
         # get the top 100 and use the same list for all the other queries
         query_cpu = 'topk(100, sum(slurm_job:allocated_core:count_user_account{{ {filter} }}) by (user, account))'.format(
-            filter=prom.get_filter())
+            filter=filter)
         stats_cpu = prom.query_last(query_cpu)
         users = []
         for line in stats_cpu:
@@ -46,28 +46,28 @@ def stats_for_users(users=None, time_average_minutes=None):
         # use the list of users as filter
         query_cpu = 'sum(slurm_job:allocated_core:count_user_account{{ user=~"{users}", {filter} }}) by (user, account)'.format(
             users='|'.join(users),
-            filter=prom.get_filter())
+            filter=filter)
         stats_cpu = prom.query_last(query_cpu)
     stats_cpu_asked = metrics_to_user(stats_cpu)
 
     if time_average_minutes is None:
         query_cpu_used = 'sum(slurm_job:used_core:sum_user_account{{user=~"{users}", {filter} }}) by (user, account)'.format(
             users='|'.join(users),
-            filter=prom.get_filter())
+            filter=filter)
     else:
         query_cpu_used = 'sum(avg_over_time(slurm_job:used_core:sum_user_account{{user=~"{users}", {filter} }}[{time_average}m])) by (user, account)'.format(
             users='|'.join(users),
-            filter=prom.get_filter(),
+            filter=filter,
             time_average=time_average_minutes)
     stats_cpu_used = metrics_to_user(prom.query_last(query_cpu_used))
 
     query_mem_asked = 'sum(slurm_job:allocated_memory:sum_user_account{{user=~"{users}", {filter}}}) by (user, account)'.format(
         users='|'.join(users),
-        filter=prom.get_filter())
+        filter=filter)
     stats_mem_asked = metrics_to_user(prom.query_last(query_mem_asked))
     query_mem_max = 'sum(slurm_job:max_memory:sum_user_account{{user=~"{users}", {filter}}}) by (user, account)'.format(
         users='|'.join(users),
-        filter=prom.get_filter())
+        filter=filter)
     stats_mem_max = metrics_to_user(prom.query_last(query_mem_max))
     return (stats_cpu_asked, stats_cpu_used, stats_mem_asked, stats_mem_max)
 
@@ -81,7 +81,8 @@ def compute_data(request):
     except ValueError:
         time_average_minutes = None
 
-    stats_cpu_asked, stats_cpu_used, stats_mem_asked, stats_mem_max = stats_for_users(users=None, time_average_minutes=time_average_minutes)
+    filter = prom.get_filter_compute()
+    stats_cpu_asked, stats_cpu_used, stats_mem_asked, stats_mem_max = stats_for_users(users=None, time_average_minutes=time_average_minutes, filter=filter)
 
     lines = stats_cpu_asked.keys()
     users = [x[0] for x in lines]
