@@ -33,11 +33,10 @@
 <div id="time-interval-selector">
   <label>Select Time Interval:</label>
   <label><input type="radio" name="time-interval" value="last" checked> Last</label>
-  <label><input type="radio" name="time-interval" value="30s"> 30 Seconds</label>
-  <label><input type="radio" name="time-interval" value="1m"> 1 Minute</label>
-  <label><input type="radio" name="time-interval" value="10m"> 10 Minutes</label>
-  <label><input type="radio" name="time-interval" value="30m"> 30 Minutes</label>
-  <label><input type="radio" name="time-interval" value="1h"> 1 Hour</label>
+  <label><input type="radio" name="time-interval" value="5"> 5 Minute</label>
+  <label><input type="radio" name="time-interval" value="10"> 10 Minutes</label>
+  <label><input type="radio" name="time-interval" value="30"> 30 Minutes</label>
+  <label><input type="radio" name="time-interval" value="60"> 1 Hour</label>
 </div>
 
 <table class="table table-striped" id="compute">
@@ -52,50 +51,65 @@
       <th scope="col">{% translate "Wasting" %}</th>
     </tr>
   </thead>
-  <tbody>
-{% for user in cpu_users %}
-    <tr>
-      <td><a href="{{settings.BASE_URL}}secure/jobstats/{{user.user}}">{{user.user | anonymize}}
-        {% if user.note_flag %}
-        <span class="badge badge-primary"><span data-feather="alert-circle" title="User has a note"></span></span>
-        {% endif %}</a>
-      </td>
-      <td><a href="{{settings.BASE_URL}}secure/accountstats/{{user.account}}">{{user.account | anonymize}}</a></td>
-      <td>{{user.cpu_asked | floatformat}}</td>
-      <td>
-{% if user.cpu_ratio < 0.75 %}
-<span class="badge badge-danger">{{user.cpu_used | floatformat:-1}}</span>
-{% elif user.cpu_ratio < 0.90 %}
-<span class="badge badge-warning">{{user.cpu_used | floatformat:-1}}</span>
-{% else %}
-{{user.cpu_used | floatformat:-1}}
-{% endif %}
-      </td>
-      <td>{{user.mem_asked | floatformat:0 }}</td>
-      <td>{{user.mem_max | floatformat:0 }}</td>
-      <td>
-        {% for badge in user.waste_badges %}
-        <span class="badge badge-{{badge.0}}">{{badge.1}}</span>
-        {% empty %}
-        <span class="badge badge-success">OK</span>
-        {% endfor %}
-      </td>
-    </tr>
-{% endfor %}
-  </tbody>
 </table>
 
 <script>
   $(document).ready(function () {
-    $('#compute').DataTable({
-      "paging": false,
-      "order": [[ 2, "desc" ]],
-      columns: [
-        { },
-        { },
-        { },
-        { },
-        { render: function(data, type, row){
+    const table = $('#compute').DataTable({
+      "processing": true,
+      "ajax": {
+          "url": "{{settings.BASE_URL}}secure/top/compute/data",
+          "dataSrc": "cpu_users",
+        "data": function (d) {
+          var selectedInterval = $('input[name="time-interval"]:checked').val();
+          d.avg = selectedInterval;
+        }
+      },
+      "columns": [
+        {
+          "data": "user",
+          "render": function(data, type, row) {
+            let userUrl = `{{settings.BASE_URL}}secure/jobstats/${data}`;
+            let userDisplay = data || "anonymize";
+
+            let noteBadge = row.note_flag ? 
+              `<span class="badge badge-primary"><span data-feather="alert-circle" title="User has a note"></span></span>` : 
+              "";
+
+            return `<a href="${userUrl}">${userDisplay} ${noteBadge}</a>`;
+          }
+        },
+        {
+          "data": "account",
+          "render": function(data, type, row) {
+            let accountUrl = `{{settings.BASE_URL}}secure/accountstats/${data}`;
+            let accountDisplay = data || "anonymize";
+            return `<a href="${accountUrl}">${accountDisplay}</a>`;
+          }
+        },
+        {
+          "data": "cpu_asked",
+          "render": function(data, type, row) {
+            return parseFloat(data).toFixed(1);
+          }
+        },
+        {
+          "data": "cpu_used",
+          "render": function(data, type, row) {
+            let formattedCpuUsed = parseFloat(data).toFixed(1);
+
+            if (row.cpu_ratio < 0.75) {
+              return `<span class="badge badge-danger">${formattedCpuUsed}</span>`;
+            } else if (row.cpu_ratio < 0.90) {
+              return `<span class="badge badge-warning">${formattedCpuUsed}</span>`;
+            } else {
+              return formattedCpuUsed;
+            }
+          }
+        },
+        {
+          "data": "mem_asked",
+          "render": function(data, type, row) {
             if ( type === 'display' || type === 'filter' ) {
               return filesize(data);
             }
@@ -104,13 +118,18 @@
             }
           }
         },
-        { render: function(data, type, row){
+        {
+          "data": "mem_max",
+          "render": function(data, type, row) {
             if ( type === 'display' || type === 'filter' ) {
-              ratio = data/row[3];
-              if (ratio < 0.1) {
+              ratio = row.mem_ratio;
+              reasonable_mem = row.reasonable_mem;
+              mem_asked = row.mem_asked;
+              // Matching backend logic
+              if (mem_asked > reasonable_mem && ratio < 0.1) {
                 return '<span class="badge badge-danger">' + filesize(data) + '</span>';
               }
-              else if (ratio < 0.5) {
+              else if (mem_asked > reasonable_mem && ratio < 0.5) {
                 return '<span class="badge badge-warning">' + filesize(data) + '</span>';
               }
               else {
@@ -122,22 +141,45 @@
             }
           }
         },
-        { },
-      ]
+        {
+          "data": "waste_badges",
+          "render": function(data, type, row) {
+            if (row.waste_badges && row.waste_badges.length > 0) {
+              return row.waste_badges.map(badge => 
+                `<span class="badge badge-${badge[0]}">${badge[1]}</span>`
+              ).join(" ");
+            } else {
+              return `<span class="badge badge-success">OK</span>`;
+            }
+          }
+        }
+      ],
+    });
+
+    const applyStatusFilter = function() {
+      const selectedStatuses = $('#select-status').val() || [];
+
+      $.fn.dataTable.ext.search = [];
+
+      $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const status = data[6];
+        return selectedStatuses.length === 0 || selectedStatuses.some(selectedStatus => status.includes(selectedStatus));
+      });
+      table.draw();
+    };
+
+    $('#select-status').change(function() {
+      applyStatusFilter();
+    });
+
+    applyStatusFilter();
+
+    $(".chosen-select").chosen({width:"100%"})
+    $('input[name="time-interval"]').change(function () {
+      $('#compute').DataTable().clear().draw();
+      $('#compute').DataTable().ajax.reload();
     });
   });
-
-  $(".chosen-select").chosen({width:"100%"})
-  $('#select-status').on('change', function() {
-      const selectedStatuses = $(this).val();
-      $('#compute tbody tr').each(function() {
-        const row = $(this);
-        const badgeText = row.find('td:last-child .badge').text().trim();
-
-        const showRow = selectedStatuses.length === 0 || selectedStatuses.some(status => badgeText.includes(status));
-        row.toggle(showRow);
-      });
-  }).trigger('change');
 
 </script>
 

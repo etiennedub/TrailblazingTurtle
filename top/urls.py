@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('', views.index),
     path('compute/', views.compute),
+    path('compute/data', views.compute_data),
     path('gpucompute/', views.gpucompute),
     path('largemem/', views.largemem),
     path('lustre/', views.lustre),

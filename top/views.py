@@ -33,7 +33,7 @@ def metrics_to_job(metrics):
     return jobs_metrics
 
 
-def stats_for_users(users=None):
+def stats_for_users(users=None, time_average_minutes=None):
     if users is None:
         # get the top 100 and use the same list for all the other queries
         query_cpu = 'topk(100, sum(slurm_job:allocated_core:count_user_account{{ {filter} }}) by (user, account))'.format(
@@ -50,9 +50,15 @@ def stats_for_users(users=None):
         stats_cpu = prom.query_last(query_cpu)
     stats_cpu_asked = metrics_to_user(stats_cpu)
 
-    query_cpu_used = 'sum(slurm_job:used_core:sum_user_account{{user=~"{users}", {filter} }}) by (user, account)'.format(
-        users='|'.join(users),
-        filter=prom.get_filter())
+    if time_average_minutes is None:
+        query_cpu_used = 'sum(slurm_job:used_core:sum_user_account{{user=~"{users}", {filter} }}) by (user, account)'.format(
+            users='|'.join(users),
+            filter=prom.get_filter())
+    else:
+        query_cpu_used = 'sum(avg_over_time(slurm_job:used_core:sum_user_account{{user=~"{users}", {filter} }}[{time_average}m])) by (user, account)'.format(
+            users='|'.join(users),
+            filter=prom.get_filter(),
+            time_average=time_average_minutes)
     stats_cpu_used = metrics_to_user(prom.query_last(query_cpu_used))
 
     query_mem_asked = 'sum(slurm_job:allocated_memory:sum_user_account{{user=~"{users}", {filter}}}) by (user, account)'.format(
@@ -68,9 +74,14 @@ def stats_for_users(users=None):
 
 @login_required
 @staff
-def compute(request):
-    context = {}
-    stats_cpu_asked, stats_cpu_used, stats_mem_asked, stats_mem_max = stats_for_users(users=None)
+def compute_data(request):
+    time_average_minutes = request.GET.get('avg', None)
+    try:
+        time_average_minutes = int(time_average_minutes)
+    except ValueError:
+        time_average_minutes = None
+
+    stats_cpu_asked, stats_cpu_used, stats_mem_asked, stats_mem_max = stats_for_users(users=None, time_average_minutes=time_average_minutes)
 
     lines = stats_cpu_asked.keys()
     users = [x[0] for x in lines]
@@ -81,7 +92,7 @@ def compute(request):
     for note in notes:
         note_per_user.add(note.username)
 
-    context['cpu_users'] = []
+    cpu_users = []
     for line in lines:
         try:
             reasonable_mem = stats_cpu_asked[line] * settings.NORMAL_MEM_BY_CORE * 1.1
@@ -98,6 +109,7 @@ def compute(request):
                 'mem_max': stats_mem_max[line],
                 'mem_ratio': stats_mem_max[line] / stats_mem_asked[line],
                 'note_flag': user in note_per_user,
+                'reasonable_mem': reasonable_mem,
             }
             waste_badges = []
             if stats_mem_asked[line] > reasonable_mem:
@@ -118,11 +130,17 @@ def compute(request):
                 waste_badges.append(('warning', _('Cores')))
 
             stats['waste_badges'] = waste_badges
-            context['cpu_users'].append(stats)
+            cpu_users.append(stats)
         except KeyError:
             pass
-    context['select_waste_badges'] = [_('Memory'), _('Cores')]
 
+    return JsonResponse({"cpu_users": cpu_users})
+
+@login_required
+@staff
+def compute(request):
+    context = {}
+    context['select_waste_badges'] = [_('Memory'), _('Cores')]
     return render(request, 'top/compute.html', context)
 
 
