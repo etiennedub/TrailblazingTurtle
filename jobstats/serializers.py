@@ -8,12 +8,12 @@ import datetime
 class JobScriptSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = JobScript
-        fields = ['id_job', 'submit_script']
+        fields = ["id_job", "submit_script"]
 
 
 class UnixEpochDateField(serializers.DateTimeField):
     def to_internal_value(self, value):
-        """ Return epoch time for a datetime object or ``None``"""
+        """Return epoch time for a datetime object or ``None``"""
         try:
             return int(time.mktime(value.timetuple()))
         except (AttributeError, TypeError):
@@ -34,14 +34,21 @@ class JobSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = JobTable
         fields = [
-            'id_job',
-            'job_name',
-            'account',
-            'time_submit',
-            'time_start',
-            'time_eligible',
-            'time_end',
-            'timelimit',
-            'get_state_display',
-            'nodes',
-            'username']
+            "id_job",
+            "job_name",
+            "account",
+            "time_submit",
+            "time_start",
+            "time_eligible",
+            "time_end",
+            "timelimit",
+            "get_state_display",
+            "nodes",
+            "username",
+            "array_task_str",
+            "id_array_job",
+            "flags",
+            "array_max_tasks",
+            "array_task_pending",
+            "job_type",
+        ]

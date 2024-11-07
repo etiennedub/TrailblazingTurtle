@@ -368,6 +368,22 @@ class JobTable(models.Model):
         # convert user id to username from ldap database
         return uid_to_username(self.id_user)
 
+    def job_type(self):
+        from enum import StrEnum, auto
+        class JobType(StrEnum):
+            INTERACTIVE = auto()
+            NORMAL = auto()
+            ARRAY = auto()
+
+        interactive_job_regex = r'^(\/[^\s]*\/)?salloc\b'
+        if self.id_array_job != 0:
+            return JobType.ARRAY 
+        elif re.match(interactive_job_regex, self.submit_line):
+            return JobType.INTERACTIVE 
+        else:
+            return JobType.NORMAL 
+
+
     # internal function to parse dependencies
     def parse_deps(self, submit_line):
         # parse dependencies from the submit line

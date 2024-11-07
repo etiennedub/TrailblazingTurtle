@@ -125,9 +125,9 @@ def compute_data(request):
                 # The next check will ensure that all cores are used
                 pass
 
-            if stats['cpu_ratio'] < 0.75:
+            if stats['cpu_ratio'] < 0.5:
                 waste_badges.append(('danger', _('Cores')))
-            elif stats['cpu_ratio'] < 0.9:
+            elif stats['cpu_ratio'] < 0.75:
                 waste_badges.append(('warning', _('Cores')))
 
             stats['waste_badges'] = waste_badges
